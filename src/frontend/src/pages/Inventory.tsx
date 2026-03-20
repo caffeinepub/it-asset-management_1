@@ -61,6 +61,14 @@ export default function Inventory({
     return matchSearch && matchCat && matchStatus;
   });
 
+  function getAssignedEmployee(assetId: string): Employee | undefined {
+    const active = assignments.find(
+      (a) => a.assetId === assetId && !a.returnedDate,
+    );
+    if (!active) return undefined;
+    return employees.find((e) => e.id === active.employeeId);
+  }
+
   function saveAsset() {
     if (!form.name || !form.serialNumber) return;
     if (editAsset) {
@@ -336,6 +344,7 @@ export default function Inventory({
                   "Serial #",
                   "Category",
                   "Status",
+                  "Assigned To",
                   "Location",
                   "Vendor",
                   "Actions",
@@ -350,80 +359,99 @@ export default function Inventory({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map((asset) => (
-                <tr
-                  key={asset.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                    {asset.id}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                    {asset.name}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">
-                    {asset.serialNumber}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 capitalize">
-                    {asset.category}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[asset.status]}`}
-                    >
-                      {asset.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{asset.location}</td>
-                  <td className="px-4 py-3 text-gray-600">{asset.vendor}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(asset)}
-                        title="Update Details"
-                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              {filtered.map((asset) => {
+                const assignedEmp = getAssignedEmployee(asset.id);
+                return (
+                  <tr
+                    key={asset.id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-mono text-xs text-gray-500">
+                      {asset.id}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+                      {asset.name}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">
+                      {asset.serialNumber}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 capitalize">
+                      {asset.category}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[asset.status]}`}
                       >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAssignAsset(asset);
-                          setAssignEmployeeId("");
-                          setAssignNotes("");
-                        }}
-                        title="Assign"
-                        disabled={asset.status !== "available"}
-                        className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40"
-                      >
-                        <UserPlus size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => doReturn(asset)}
-                        title="Return"
-                        disabled={asset.status !== "assigned"}
-                        className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-40"
-                      >
-                        <Undo2 size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setHistoryAsset(asset)}
-                        title="Assignment History"
-                        className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                      >
-                        <Clock size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {asset.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {assignedEmp ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                            {assignedEmp.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-gray-800 text-sm whitespace-nowrap">
+                            {assignedEmp.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs">--</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {asset.location}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{asset.vendor}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(asset)}
+                          title="Update Details"
+                          className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAssignAsset(asset);
+                            setAssignEmployeeId("");
+                            setAssignNotes("");
+                          }}
+                          title="Assign"
+                          disabled={asset.status !== "available"}
+                          className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40"
+                        >
+                          <UserPlus size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => doReturn(asset)}
+                          title="Return"
+                          disabled={asset.status !== "assigned"}
+                          className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-40"
+                        >
+                          <Undo2 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHistoryAsset(asset)}
+                          title="Assignment History"
+                          className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                        >
+                          <Clock size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-8 text-center text-gray-400"
                   >
                     No assets found
