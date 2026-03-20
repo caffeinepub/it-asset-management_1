@@ -60,6 +60,33 @@ export default function Dashboard({
     [assets, employees, auditRecords, onboardingRecords, offboardingRecords],
   );
 
+  const employeeMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const e of employees) {
+      map[e.id] = e.name;
+    }
+    return map;
+  }, [employees]);
+
+  const assetMap = useMemo(() => {
+    const map: Record<string, Asset> = {};
+    for (const a of assets) {
+      map[a.id] = a;
+    }
+    return map;
+  }, [assets]);
+
+  // Active assignments (not returned)
+  const activeAssignmentMap = useMemo(() => {
+    const map: Record<string, string> = {}; // assetId -> employeeId
+    for (const a of assignments) {
+      if (!a.returnedDate) {
+        map[a.assetId] = a.employeeId;
+      }
+    }
+    return map;
+  }, [assignments]);
+
   const categoryData = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const a of assets) {
@@ -94,6 +121,16 @@ export default function Dashboard({
         new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime(),
     )
     .slice(0, 5);
+
+  const inventoryOverview = useMemo(() => {
+    return assets.slice(0, 10).map((asset) => {
+      const empId = activeAssignmentMap[asset.id];
+      return {
+        ...asset,
+        assignedTo: empId ? (employeeMap[empId] ?? "Unknown") : null,
+      };
+    });
+  }, [assets, activeAssignmentMap, employeeMap]);
 
   const kpis = [
     {
@@ -219,7 +256,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Bar Chart + Recent Table */}
+      {/* Bar Chart + Recent Assignments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <h3 className="font-semibold text-gray-800 mb-4">
@@ -253,6 +290,9 @@ export default function Dashboard({
                     Asset
                   </th>
                   <th className="text-left py-2 text-xs text-gray-500 font-medium">
+                    Assigned To
+                  </th>
+                  <th className="text-left py-2 text-xs text-gray-500 font-medium">
                     Date
                   </th>
                   <th className="text-left py-2 text-xs text-gray-500 font-medium">
@@ -261,29 +301,114 @@ export default function Dashboard({
                 </tr>
               </thead>
               <tbody>
-                {recentAssignments.map((a) => (
-                  <tr key={a.id} className="border-b border-gray-50">
-                    <td className="py-2 text-gray-700 font-medium">
-                      {a.assetId}
-                    </td>
-                    <td className="py-2 text-gray-500">{a.assignedDate}</td>
-                    <td className="py-2">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          a.returnedDate
-                            ? "bg-gray-100 text-gray-600"
-                            : "bg-green-100 text-green-700"
-                        }`}
-                      >
-                        {a.returnedDate ? "Returned" : "Active"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {recentAssignments.map((a) => {
+                  const asset = assetMap[a.assetId];
+                  const empName = employeeMap[a.employeeId] ?? a.employeeId;
+                  return (
+                    <tr key={a.id} className="border-b border-gray-50">
+                      <td className="py-2 text-gray-700 font-medium">
+                        {asset ? asset.name : a.assetId}
+                      </td>
+                      <td className="py-2 text-gray-700">{empName}</td>
+                      <td className="py-2 text-gray-500">{a.assignedDate}</td>
+                      <td className="py-2">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            a.returnedDate
+                              ? "bg-gray-100 text-gray-600"
+                              : "bg-green-100 text-green-700"
+                          }`}
+                        >
+                          {a.returnedDate ? "Returned" : "Active"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
+      </div>
+
+      {/* Inventory Overview with Assigned To */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h3 className="font-semibold text-gray-800 mb-4">Inventory Overview</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left py-2 px-3 text-xs text-gray-500 font-medium">
+                  Asset Name
+                </th>
+                <th className="text-left py-2 px-3 text-xs text-gray-500 font-medium">
+                  Category
+                </th>
+                <th className="text-left py-2 px-3 text-xs text-gray-500 font-medium">
+                  Serial No.
+                </th>
+                <th className="text-left py-2 px-3 text-xs text-gray-500 font-medium">
+                  Status
+                </th>
+                <th className="text-left py-2 px-3 text-xs text-gray-500 font-medium">
+                  Assigned To
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {inventoryOverview.map((asset) => (
+                <tr
+                  key={asset.id}
+                  className="border-b border-gray-50 hover:bg-gray-50"
+                >
+                  <td className="py-2 px-3 text-gray-700 font-medium">
+                    {asset.name}
+                  </td>
+                  <td className="py-2 px-3 text-gray-500 capitalize">
+                    {asset.category}
+                  </td>
+                  <td className="py-2 px-3 text-gray-500 font-mono text-xs">
+                    {asset.serialNumber}
+                  </td>
+                  <td className="py-2 px-3">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        asset.status === "assigned"
+                          ? "bg-blue-100 text-blue-700"
+                          : asset.status === "available"
+                            ? "bg-green-100 text-green-700"
+                            : asset.status === "in-audit"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {asset.status}
+                    </span>
+                  </td>
+                  <td className="py-2 px-3">
+                    {asset.assignedTo ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
+                          {asset.assignedTo.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-gray-700">
+                          {asset.assignedTo}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Unassigned</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {assets.length > 10 && (
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            Showing 10 of {assets.length} assets. Go to Inventory for full list.
+          </p>
+        )}
       </div>
     </div>
   );
